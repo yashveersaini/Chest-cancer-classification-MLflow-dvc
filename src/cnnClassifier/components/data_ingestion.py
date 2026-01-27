@@ -20,6 +20,13 @@ class DataIngestion:
             dataset_url = self.config.source_URL
             zip_download_dir = self.config.local_data_file
             os.makedirs("artifacts/data_ingestion", exist_ok=True)
+
+            if os.path.exists(zip_download_dir):
+                logger.info(
+                    f"File already exists: {zip_download_dir})"
+                )
+                return zip_download_dir
+            
             logger.info(f"Dowwnloading data from {dataset_url} into file {zip_download_dir}")
 
             file_id = dataset_url.split('/')[-2]
@@ -39,5 +46,12 @@ class DataIngestion:
         """
         unzip_path = self.config.unzip_dir
         os.makedirs(unzip_path, exist_ok=True)
+
+        if os.listdir(unzip_path):
+            logger.info("Data already extracted, skipping unzip")
+            return
+
         with zipfile.ZipFile(self.config.local_data_file, 'r') as zip_ref:
             zip_ref.extractall(unzip_path)
+
+        logger.info("Extraction completed")
