@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chest Cancer Classification</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body { background:#f4f7fb; }
+    .container { max-width:1100px; margin-top:40px; }
+    h3 { color:#1b2d6b; font-weight:700; }
+
+    .dropzone {
+      height:240px;
+      border:2px dashed #cfd7e6;
+      border-radius:8px;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      cursor:pointer;
+    }
+    .dropzone.dragover { border-color:#0d6efd; background:#f8fbff; }
+
+    .preview {
+      width:100%;
+      max-height:280px;
+      object-fit:contain;
+      border-radius:6px;
+      background:#f1f3f9;
+    }
+
+    .spinner-overlay {
+      position:absolute;
+      inset:0;
+      background:rgba(255,255,255,.7);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      border-radius:6px;
+      z-index:10;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h3 class="text-center mb-4">Chest Cancer Classification</h3>
+
+  <div class="row g-4">
+
+    <!-- LEFT: INPUT -->
+    <div class="col-lg-6">
+      <div class="card p-3">
+        <h5 class="mb-2">Upload Image</h5>
+
+        <div id="dropzone" class="dropzone mb-3">
+          <div>
+            <strong>Drag & Drop image</strong>
+            <div class="text-muted">or click to upload</div>
+          </div>
+        </div>
+
+        <input id="file-input" type="file" accept="image/*" hidden>
+
+        <img id="preview-image" class="preview mb-3" style="display:none" />
+
+        <div class="d-flex justify-content-between">
+          <button id="btn-clear" class="btn btn-outline-secondary">Clear</button>
+          <button id="btn-predict" class="btn btn-success" disabled>Predict</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULT -->
+    <div class="col-lg-6">
+      <div class="card p-3 position-relative">
+
+        <div class="spinner-overlay" id="spinner">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <h5 class="mb-3">Prediction Result</h5>
+
+        <!-- Returned Image -->
+        <div id="backend-image-container" class="text-center mb-3" style="display:none">
+          <img id="backend-image" class="preview">
+        </div>
+
+        <!-- Label -->
+        <h4 id="pred-label" class="text-center">—</h4>
+        <p id="pred-confidence" class="text-center text-muted">
+          Upload image to get prediction
+        </p>
+
+        <!-- Confidence bar -->
+        <div id="confidence-bar" style="display:none">
+          <div class="progress">
+            <div id="confidence-fill"
+                 class="progress-bar progress-bar-striped progress-bar-animated"
+                 style="width:0%">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_URL = "../predict";
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("file-input");
+  const previewImage = document.getElementById("preview-image");
+  const btnPredict = document.getElementById("btn-predict");
+  const btnClear = document.getElementById("btn-clear");
+
+  const spinner = document.getElementById("spinner");
+  const backendImageContainer = document.getElementById("backend-image-container");
+  const backendImage = document.getElementById("backend-image");
+  const predLabel = document.getElementById("pred-label");
+  const predConfidence = document.getElementById("pred-confidence");
+  const confidenceBar = document.getElementById("confidence-bar");
+  const confidenceFill = document.getElementById("confidence-fill");
+
+  let base64Image = "";
+
+  /* Drag & Drop */
+  dropzone.onclick = () => fileInput.click();
+  dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add("dragover"); };
+  dropzone.ondragleave = () => dropzone.classList.remove("dragover");
+  dropzone.ondrop = e => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    handleFile(e.dataTransfer.files[0]);
+  };
+
+  fileInput.onchange = () => handleFile(fileInput.files[0]);
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      previewImage.src = reader.result;
+      previewImage.style.display = "block";
+      base64Image = reader.result.replace(/^data:image\/.+;base64,/, "");
+      btnPredict.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  btnClear.onclick = () => {
+    previewImage.style.display = "none";
+    backendImageContainer.style.display = "none";
+    predLabel.textContent = "—";
+    predConfidence.textContent = "Upload image to get prediction";
+    confidenceBar.style.display = "none";
+    base64Image = "";
+    btnPredict.disabled = true;
+  };
+
+  btnPredict.onclick = async () => {
+    spinner.style.display = "flex";
+    btnPredict.disabled = true;
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64Image })
+      });
+
+      const data = await res.json();
+      showResult(data);
+
+    } catch (e) {
+      alert("Prediction failed");
+    }
+
+    spinner.style.display = "none";
+    btnPredict.disabled = false;
+  };
+
+  function showResult(res) {
+    let prediction = res[0] || res;
+    let image64 = res[1]?.image || res.image;
+
+    if (image64) {
+      backendImage.src = "data:image/jpeg;base64," + image64;
+      backendImageContainer.style.display = "block";
+    }
+
+    let label = "Unknown";
+    let confidence = 0;
+
+    if (prediction.label && prediction.confidence) {
+      label = prediction.label;
+      confidence = prediction.confidence;
+    } else {
+      const best = Object.entries(prediction)
+        .filter(([k,v]) => typeof v === "number")
+        .sort((a,b) => b[1] - a[1])[0];
+      if (best) {
+        label = best[0];
+        confidence = best[1];
+      }
+    }
+
+    predLabel.textContent = label;
+    predConfidence.textContent = `Confidence: ${(confidence*100).toFixed(1)}%`;
+
+    confidenceFill.style.width = Math.round(confidence*100) + "%";
+    confidenceFill.textContent = Math.round(confidence*100) + "%";
+    confidenceBar.style.display = "block";
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
