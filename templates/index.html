@@ -126,9 +126,7 @@
   const backendImageContainer = document.getElementById("backend-image-container");
   const backendImage = document.getElementById("backend-image");
   const predLabel = document.getElementById("pred-label");
-  const predConfidence = document.getElementById("pred-confidence");
-  const confidenceBar = document.getElementById("confidence-bar");
-  const confidenceFill = document.getElementById("confidence-fill");
+  const predConfidence = document.getElementById("pred-confidence"); // ✅ FIX
 
   let base64Image = "";
 
@@ -161,8 +159,12 @@
     previewImage.style.display = "none";
     backendImageContainer.style.display = "none";
     predLabel.textContent = "—";
-    predConfidence.textContent = "Upload image to get prediction";
-    confidenceBar.style.display = "none";
+
+    if (predConfidence) {
+      predConfidence.style.display = "block";
+      predConfidence.textContent = "Upload image to get prediction";
+    }
+
     base64Image = "";
     btnPredict.disabled = true;
   };
@@ -190,6 +192,11 @@
   };
 
   function showResult(res) {
+    // ✅ Hide placeholder text safely
+    if (predConfidence) {
+      predConfidence.style.display = "none";
+    }
+
     let prediction = res[0] || res;
     let image64 = res[1]?.image || res.image;
 
@@ -199,27 +206,18 @@
     }
 
     let label = "Unknown";
-    let confidence = 0;
 
-    if (prediction.label && prediction.confidence) {
+    if (prediction.label) {
       label = prediction.label;
-      confidence = prediction.confidence;
     } else {
       const best = Object.entries(prediction)
         .filter(([k,v]) => typeof v === "number")
         .sort((a,b) => b[1] - a[1])[0];
-      if (best) {
-        label = best[0];
-        confidence = best[1];
-      }
+
+      if (best) label = best[0];
     }
 
     predLabel.textContent = label;
-    predConfidence.textContent = `Confidence: ${(confidence*100).toFixed(1)}%`;
-
-    confidenceFill.style.width = Math.round(confidence*100) + "%";
-    confidenceFill.textContent = Math.round(confidence*100) + "%";
-    confidenceBar.style.display = "block";
   }
 </script>
 
