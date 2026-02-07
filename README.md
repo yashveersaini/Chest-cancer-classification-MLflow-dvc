@@ -103,10 +103,6 @@ Run the following commands from the project root directory using PowerShell:
 dvc init
 dvc repro
 dvc dag
-```bash
-dvc init
-dvc repro
-dvc dag
 ````
 
 ### Why DVC?
